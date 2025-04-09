@@ -30,7 +30,7 @@ abstract class PackageInfoPlatform extends PlatformInterface {
   }
 
   ///Returns a map with the following keys : appName,packageName,version,buildNumber
-  Future<PackageInfoData> getAll({String? baseUrl}) {
+  Future<PackageInfoData> getAll() {
     throw UnimplementedError('getAll() has not been implemented.');
   }
 }

@@ -40,19 +40,14 @@ class PackageInfoPlugin : MethodCallHandler, FlutterPlugin {
 
                 val installerPackage = getInstallerPackageName()
 
-                val installTimeMillis = info.firstInstallTime
-                val updateTimeMillis = info.lastUpdateTime
-
                 val infoMap = HashMap<String, String>()
                 infoMap.apply {
-                    put("appName", info.applicationInfo?.loadLabel(packageManager)?.toString() ?: "")
+                    put("appName", info.applicationInfo.loadLabel(packageManager).toString())
                     put("packageName", applicationContext!!.packageName)
-                    put("version", info.versionName ?: "")
+                    put("version", info.versionName)
                     put("buildNumber", getLongVersionCode(info).toString())
                     if (buildSignature != null) put("buildSignature", buildSignature)
                     if (installerPackage != null) put("installerStore", installerPackage)
-                    put("installTime", installTimeMillis.toString())
-                    put("updateTime", updateTimeMillis.toString())
                 }.also { resultingMap ->
                     result.success(resultingMap)
                 }
@@ -99,9 +94,9 @@ class PackageInfoPlugin : MethodCallHandler, FlutterPlugin {
                 val signingInfo = packageInfo.signingInfo ?: return null
 
                 if (signingInfo.hasMultipleSigners()) {
-                    signatureToSha256(signingInfo.apkContentsSigners.first().toByteArray())
+                    signatureToSha1(signingInfo.apkContentsSigners.first().toByteArray())
                 } else {
-                    signatureToSha256(signingInfo.signingCertificateHistory.first().toByteArray())
+                    signatureToSha1(signingInfo.signingCertificateHistory.first().toByteArray())
                 }
             } else {
                 val packageInfo = pm.getPackageInfo(
@@ -110,10 +105,10 @@ class PackageInfoPlugin : MethodCallHandler, FlutterPlugin {
                 )
                 val signatures = packageInfo.signatures
 
-                if (signatures.isNullOrEmpty() || signatures.first() == null) {
+                if (signatures.isNullOrEmpty() || packageInfo.signatures.first() == null) {
                     null
                 } else {
-                    signatureToSha256(signatures.first().toByteArray())
+                    signatureToSha1(signatures.first().toByteArray())
                 }
             }
         } catch (e: PackageManager.NameNotFoundException) {
@@ -125,8 +120,8 @@ class PackageInfoPlugin : MethodCallHandler, FlutterPlugin {
 
     // Credits https://gist.github.com/scottyab/b849701972d57cf9562e
     @Throws(NoSuchAlgorithmException::class)
-    private fun signatureToSha256(sig: ByteArray): String {
-        val digest = MessageDigest.getInstance("SHA-256")
+    private fun signatureToSha1(sig: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA1")
         digest.update(sig)
         val hashText = digest.digest()
         return bytesToHex(hashText)

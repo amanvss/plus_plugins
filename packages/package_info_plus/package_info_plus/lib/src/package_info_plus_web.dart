@@ -1,23 +1,19 @@
 import 'dart:convert';
-import 'dart:ui_web';
 
-import 'package:clock/clock.dart';
 import 'package:flutter_web_plugins/flutter_web_plugins.dart';
 import 'package:http/http.dart';
 import 'package:package_info_plus_platform_interface/package_info_data.dart';
 import 'package:package_info_plus_platform_interface/package_info_platform_interface.dart';
-import 'package:web/web.dart' as web;
+import 'package:web/helpers.dart' as web;
 
 /// The web implementation of [PackageInfoPlatform].
 ///
 /// This class implements the `package:package_info_plus` functionality for the web.
 class PackageInfoPlusWebPlugin extends PackageInfoPlatform {
   final Client? _client;
-  final AssetManager _assetManager;
 
-  /// Create plugin with http client and asset manager for testing purposes.
-  PackageInfoPlusWebPlugin([this._client, AssetManager? assetManagerMock])
-      : _assetManager = assetManagerMock ?? assetManager;
+  /// Create plugin with http client.
+  PackageInfoPlusWebPlugin([this._client]);
 
   /// Registers this class as the default instance of [PackageInfoPlatform].
   static void registerWith(Registrar registrar) {
@@ -53,13 +49,11 @@ class PackageInfoPlusWebPlugin extends PackageInfoPlatform {
   }
 
   @override
-  Future<PackageInfoData> getAll({String? baseUrl}) async {
-    final int cacheBuster = clock.now().millisecondsSinceEpoch;
-    final Map<String, dynamic> versionMap =
-        await _getVersionMap(baseUrl, cacheBuster) ??
-            await _getVersionMap(_assetManager.baseUrl, cacheBuster) ??
-            await _getVersionMap(web.window.document.baseURI, cacheBuster) ??
-            {};
+  Future<PackageInfoData> getAll() async {
+    final cacheBuster = DateTime.now().millisecondsSinceEpoch;
+    final url = versionJsonUrl(web.window.document.baseURI, cacheBuster);
+    final response = _client == null ? await get(url) : await _client.get(url);
+    final versionMap = _getVersionMap(response);
 
     return PackageInfoData(
       appName: versionMap['app_name'] ?? '',
@@ -71,47 +65,16 @@ class PackageInfoPlusWebPlugin extends PackageInfoPlatform {
     );
   }
 
-  Future<Map<String, dynamic>?> _getVersionMap(
-    String? baseUrl,
-    int cacheBuster,
-  ) async {
-    if (baseUrl?.isNotEmpty == true) {
-      final Uri url = versionJsonUrl(baseUrl!, cacheBuster);
-      final Response response = await _getResponse(url);
-
-      return _decodeVersionMap(response);
-    }
-
-    return null;
-  }
-
-  Future<Response> _getResponse(Uri uri) async {
-    return _client == null ? await get(uri) : await _client.get(uri);
-  }
-
-  Map<String, dynamic>? _decodeVersionMap(Response response) {
+  Map<String, dynamic> _getVersionMap(Response response) {
     if (response.statusCode == 200) {
       try {
         return jsonDecode(response.body);
       } catch (_) {
-        return null;
+        return <String, dynamic>{};
       }
     } else {
-      return null;
+      return <String, dynamic>{};
     }
-  }
-}
-
-extension _AssetManager on AssetManager {
-  /// Get the base URL configured in the Flutter Web Engine initialization
-  ///
-  /// The AssetManager has the base URL as private ([AssetManager._baseUrl] property),
-  /// so we need to do some little hack to get it. If AssetManager adds in some
-  /// moment a public API to get the base URL, this extension can be replaced by that API.
-  ///
-  /// @see https://docs.flutter.dev/platform-integration/web/initialization#initializing-the-engine
-  String get baseUrl {
-    return getAssetUrl('').replaceAll('$assetsDir/', '');
   }
 }
 
@@ -123,8 +86,6 @@ extension _UriOrigin on Uri {
   String get _origin {
     if (isScheme('chrome-extension')) {
       return '$scheme://$host';
-    } else if (isScheme('file')) {
-      return '$scheme://';
     }
     return origin;
   }

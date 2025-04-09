@@ -9,12 +9,8 @@ const MethodChannel _channel =
 /// An implementation of [PackageInfoPlatform] that uses method channels.
 class MethodChannelPackageInfo extends PackageInfoPlatform {
   @override
-  Future<PackageInfoData> getAll({String? baseUrl}) async {
+  Future<PackageInfoData> getAll() async {
     final map = await _channel.invokeMapMethod<String, dynamic>('getAll');
-
-    final installTime = _parseNullableStringMillis(map?['installTime']);
-    final updateTime = _parseNullableStringMillis(map?['updateTime']);
-
     return PackageInfoData(
       appName: map!['appName'] ?? '',
       packageName: map['packageName'] ?? '',
@@ -22,14 +18,6 @@ class MethodChannelPackageInfo extends PackageInfoPlatform {
       buildNumber: map['buildNumber'] ?? '',
       buildSignature: map['buildSignature'] ?? '',
       installerStore: map['installerStore'] as String?,
-      installTime: installTime,
-      updateTime: updateTime,
     );
-  }
-
-  DateTime? _parseNullableStringMillis(String? millis) {
-    return millis != null && int.tryParse(millis) != null
-        ? DateTime.fromMillisecondsSinceEpoch(int.parse(millis))
-        : null;
   }
 }
